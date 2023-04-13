@@ -1,13 +1,11 @@
 /*
- *	NMH's Simple C Compiler, 2012
+ *	NMH's Simple C Compiler, 2012--2021
  *	setjmp.h
  */
 
-struct _jmp_buf {
+typedef struct {
 	void	*sp, *fp, *ip;
-};
+} jmp_buf[1];
 
-#define jmp_buf	struct _jmp_buf
-
-void	longjmp(jmp_buf *env, int v);
-int	setjmp(jmp_buf *env);
+void	longjmp(jmp_buf env, int v);
+int	setjmp(jmp_buf env);

@@ -1,7 +1,9 @@
 
 	SubC Compiler
-	By Nils M Holm, 2011--2016
+	By Nils M Holm, 2011--2022
 	Placed in the public domain
+	In places where the concept of the public domain does not exist,
+	the Creative Commons Zero license applies. See the file CC0.
 
 
 	SUMMARY
@@ -32,13 +34,13 @@
 	DOS version, which emits TASM-style syntax). It targets the
 	following processors and operating systems:
 
-		FreeBSD		386	armv6	x86-64
-		Linux		386	-	x86-64
-		NetBSD		386	-	x86-64
+		FreeBSD		386*	armv6*	x86-64
+		Linux		386*	-	x86-64*
+		NetBSD		386*	-	x86-64*
 		OpenBSD		386%	-	-
-		Windows/MinGW	386	-	-
+		Windows/MinGW	386*	-	-
 		Darwin		-	-	x86-64%(/)
-		DOS		8086!
+		DOS		8086(/)
 
 		  %  uses the syscall layer of the host libc
 		  *  untested
@@ -79,6 +81,10 @@
 	the following parts of C language to the version described
 	in "Practical Compiler Construction":
 
+	o  There is some support for structs and unions.
+
+	o  There is some support for typedefs.
+
 	o  &array is now valid syntax (you no longer have to write
 	   &array[0]).
 
@@ -91,11 +97,6 @@
 	o  extern identifiers may now be declared locally.
 
 	o  Prototypes may have the static storage class.
-
-	o  There is support for structs and unions.
-
-	o  jmp_buf is now a struct; setjmp() and longjmp() must be
-	   called with &jmp_buf.
 
 	o  FILEs are now structs and can no longer be mistaken for
 	   ints by the type checker.
@@ -131,7 +132,7 @@
 	DIFFERENCES BETWEEN SUBC (THIS VERSION) AND FULL C89
 
 	o  The following keywords are not recognized:
-	   const, double, float, goto, long, short, signed, typedef,
+	   const, double, float, goto, long, short, signed,
 	   unsigned.
 
 	o  There are only two primitive data types: the signed int and
@@ -149,14 +150,8 @@
 
 	o  There are no ``const'' variables.
 
-	o  There is no typedef.
-
 	o  There are no unsigned integers, long integers, or signed
 	   chars.
-
-	o  Struct/union declarations must be separate from the
-	   declarations of struct/union objects, i.e.
-	   ``struct p { int x, y; } q;'' will not work.
 
 	o  Struct/union declarations must be global (struct and union
 	   objects may be declared locally, though).
@@ -218,7 +213,8 @@
 
 	o  The varargs mechanism is slightly incompatible.
 
-	o  The SubC compiler accepts // comments in addition to /* */.
+	o  The SubC compiler accepts // comments in addition to /* */
+	   (but not in macros).
 
 
 	SELECTING A TARGET PLATFORM
@@ -351,6 +347,8 @@
 	To Romain LWPB for porting the runtime module to OpenBSD/386
 	and Darwin/x86-64 as well as for modifying the x86-64 code
 	generator to emit proper code for Darwin.
+
+	To Paul Edwards for testing typedef.
 
 	To everybody who test-drove SubC and submitted bug reports.
 

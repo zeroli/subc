@@ -154,14 +154,23 @@ static void pperror(void) {
 	exit(1);
 }
 
+static char FNbuf[TEXTLEN];
+
 static void setline(void) {
-	char	buf[TEXTLEN+1];
+	char	buf[TEXTLEN+1], *p, *q;
 
 	if ('\n' == Putback)
 		buf[0] = 0;
 	else
 		getln(buf, TEXTLEN-1);
 	Line = atoi(buf) - 1;
+	if ((p = strchr(buf, '"')) != NULL) {
+		p++;
+		if ((q = strchr(p, '"')) != NULL) {
+			*q = 0;
+			File = strcpy(FNbuf, p);
+		}
+	}
 }
 
 static void junkln(void) {

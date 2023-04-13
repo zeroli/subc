@@ -1,5 +1,5 @@
 /*
- *	NMH's Simple C Compiler, 2011,2012
+ *	NMH's Simple C Compiler, 2011--2022
  *	Error handling
  */
 
@@ -42,7 +42,7 @@ int synch(int syn) {
 	while (t != syn) {
 		if (EOF == t)
 			fatal("error recovery failed");
-		t = next();
+		t = scan();
 	}
 	Syntoken = syn;
 	return t;

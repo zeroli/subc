@@ -1,3 +1,17 @@
+2022-01-27 Fix: calling a function pointer in a struct did not work.
+2022-01-27 Fixed synchronization after syntax error. Thanks, Paul Edwards!
+2022-01-23 Fixed a bug in struct declaration. Thanks, Paul Edwards!
+2021-08-17 Changed type of jmp_buf, so that setjmp(jmp_buf) works (without &).
+2021-08-17 Fixed array declarations in typedef struct.
+2021-08-17 Added file name argument to #line preprocessor directive.
+2021-08-16 Added support for anonymous structs.
+2021-08-16 Added mixed struct and struct object declarations: struct {...} x;
+2021-08-16 Cleaned up some typedef corner cases.
+2021-08-16 Using typedef instead of #define in libc.
+2021-08-16 Fixed a bug in malloc()'s defrag(). Thanks, Jean-Marc Lienher!
+2021-08-15 Added a subset of the typedef statement and user-defined types.
+2021-08-15 Fix: zero-size arrays are now invalid.
+2021-08-13 Fix: removed invalid optimization x*2^n-->x<<n. Thanks, Bill Buzbee!
 2016-12-12 Fix: char c=-2; stored -2, but char is unsigned. (also by Volkmar)
 2016-12-01 Fix: f(a[1] && a[0]) would generate wrong code. Thanks, Volkmar!
 2016-11-28 Fix: (a,1),2 would generate wrong code. (also by Volkmar)

@@ -68,7 +68,7 @@ void fatal(char *msg) {
 
 void error(char *msg) {
 	printf("s86: %d: %s\n", Line, msg);
-	longjmp(&Restart, 1);
+	longjmp(Restart, 1);
 }
 
 void warn(char *msg) {
@@ -1306,7 +1306,7 @@ void process(void) {
 	char	*p;
 	int	**x;
 
-	setjmp(&Restart);
+	setjmp(Restart);
 	fgets(Linebuf, MAXLN, Infile);
 	while (!feof(Infile)) {
 		Line++;

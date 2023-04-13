@@ -1,5 +1,5 @@
 /*
- *	NMH's Simple C Compiler, 2011--2016
+ *	NMH's Simple C Compiler, 2011--2022
  *	Expression parser
  */
 
@@ -74,6 +74,8 @@ static node *primary(int *lv) {
 			lv[LVPRIM] = pointerto(lv[LVPRIM]);
 			return n;
 		}
+		if (CTYPE == Stcls[y])
+			error("invalid use of typedef type", Text);
 		if (comptype(Prims[y])) {
 			n = mkleaf(OP_ADDR, y);
 			lv[LVSYM] = 0;
@@ -268,7 +270,7 @@ static node *stc_access(node *n, int *lv, int ptr) {
  */
 
 static node *postfix(int *lv) {
-	node	*n = NULL, *n2;
+	node	*n = NULL, *n2, *fn;
 	int	lv2[LV], p, na;
 
 	n = primary(lv);
@@ -302,6 +304,7 @@ static node *postfix(int *lv) {
 			break;
 		case LPAREN:
 			Token = scan();
+			fn = n;
 			n = fnargs(lv[LVSYM], &na);
 			if (lv[LVSYM] && TFUNCTION == Types[lv[LVSYM]]) {
 				if (!argsok(na, Sizes[lv[LVSYM]]))
@@ -311,6 +314,7 @@ static node *postfix(int *lv) {
 			}
 			else {
 				if (lv[LVPRIM] != FUNPTR) badcall(lv);
+				n = mkbinop(OP_GLUE, n, fn);
 				n = mkunop2(OP_CALR, lv[LVSYM], na, n);
 				lv[LVPRIM] = PINT;
 			}
@@ -361,18 +365,25 @@ static node *postfix(int *lv) {
 static node *prefix(int *lv);
 
 static node *comp_size(void) {
-	int	k = 0, y, lv[LV];
+	int	utype, k = 0, y, lv[LV];
 
+	utype = 0;
 	if (	CHAR == Token || INT == Token || VOID == Token ||
-		STRUCT == Token || UNION == Token
+		STRUCT == Token || UNION == Token ||
+                (IDENT == Token && (utype = usertype(Text)) != 0)
 	) {
-		switch (Token) {
-		case CHAR:	k = CHARSIZE; break;
-		case INT:	k = INTSIZE; break;
-		case STRUCT:
-		case UNION:	k = primtype(Token, NULL);
-				k = objsize(k, TVARIABLE, 1);
-				break;
+		if (utype) {
+			k = objsize(Prims[utype], Types[utype], Sizes[utype]);
+		}
+		else {
+			switch (Token) {
+			case CHAR:	k = CHARSIZE; break;
+			case INT:	k = INTSIZE; break;
+			case STRUCT:
+			case UNION:	k = primtype(Token, NULL);
+					k = objsize(k, TVARIABLE, 1);
+					break;
+			}
 		}
 		Token = scan();
 		if (STAR == Token) {
@@ -380,9 +391,8 @@ static node *comp_size(void) {
 			Token = scan();
 			if (STAR == Token) Token = scan();
 		}
-		else if (0 == k) {
+		if (0 == k)
 			error("sizeof(void) is unknown", NULL);
-		}
 	}
 	else {
 		prefix(lv);
@@ -390,8 +400,7 @@ static node *comp_size(void) {
 		k = y? objsize(Prims[y], Types[y], Sizes[y]):
 			objsize(lv[LVPRIM], TVARIABLE, 1);
 		if (0 == k)
-			error("cannot compute sizeof: %s",
-				Text);
+			error("cannot compute sizeof object", NULL);
 	}
 	return mkleaf(OP_LIT, k);
 }

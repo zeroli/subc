@@ -1,5 +1,5 @@
 /*
- *	NMH's Simple C Compiler, 2011,2012
+ *	NMH's Simple C Compiler, 2011-2021
  *	stdio.h
  */
 
@@ -23,7 +23,7 @@
 #define _FWRITE		2
 #define _FERROR		4
 
-struct _file {
+typedef struct {
 	int	fd;
 	char	iom;
 	char	last;
@@ -33,9 +33,7 @@ struct _file {
 	int	size;
 	int	ch;
 	char	*buf;
-};
-
-#define FILE	struct _file
+} FILE;
 
 extern FILE	*stdin, *stdout, *stderr;
 

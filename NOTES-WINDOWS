@@ -3,9 +3,9 @@
 	BUILDING AND RUNNING SUBC ON WINDOWS
 
 	All Windows-related code in the runtime system has been
-	generously supplied by Jean-Marc Lienher (http://cod5.org).
-	I am afraid I am not able to answer any questions about it,
-	because I know nothing about Windows.
+	generously supplied by Jean-Marc Lienher. I am afraid I am not
+	able to answer any questions about it, because I know nothing
+	about Windows.
 
 	The Windows version of SubC requires the MinGW infrastructure,
 	but does not use the GNU libc. To build the compiler, the MSYS
@@ -19,12 +19,12 @@
 	  its input, it is probably best to keep the files in Unix
 	  format.
 
-	* DO NOT use "make". It probably will not work. Use the
+	* DO NOT use "make". It will probably not work. Use the
 	  WINBUILD.BAT script instead. (If you still want to use
 	  make, set the EXESFX variable in src/Makefile to .exe).
 
 	* There are symlinks in this archive, which the TGZ extractor
-	  probably will break. WINBUILD.BAT should restore them.
+	  will probably break. WINBUILD.BAT should restore them.
 
 	* All stdio functions of the SubC library use Unix text file
 	  format, i.e. '\n' translates to LF.

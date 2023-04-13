@@ -1,6 +1,7 @@
 /*
  *	NMH's Simple C Compiler, 2013,2014
  *	Windows/386 API
+ *	Added by Jean-Marc Lienher
  */
 
 #define EXPORT 

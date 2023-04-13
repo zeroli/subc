@@ -1,5 +1,5 @@
 /*
- *	NMH's Simple C Compiler, 2014
+ *	NMH's Simple C Compiler, 2014--2021
  *	Optimizer
  */
 
@@ -101,19 +101,11 @@ static node *reduce(node *n) {
 		return mkleaf(OP_LIT, 0);
 	if (OP_MUL == op && cr && 0 == vr)			/* x*0 -> 0 */
 		return mkleaf(OP_LIT, 0);
-	if (OP_MUL == op || OP_DIV == op) {
+	if (OP_DIV == op) {				   /* x/2^n -> x>>n */
 		lim = BPW * 8 - 1;
 		for (k=1,i=0; i<lim; i++, k<<=1) {
 			if (cr && k == vr) {
-				if (OP_MUL == op)
-					return mkbinop(OP_LSHIFT, n->left,
-							mkleaf(OP_LIT, i));
-				else
-					return mkbinop(OP_RSHIFT, n->left,
-							mkleaf(OP_LIT, i));
-			}
-			else if (cl && k == vl && OP_MUL == op) {
-				return mkbinop(OP_LSHIFT, n->right,
+				return mkbinop(OP_RSHIFT, n->left,
 						mkleaf(OP_LIT, i));
 			}
 		}

@@ -1,5 +1,5 @@
 /*
- *	NMH's Simple C Compiler, 2011,2016
+ *	NMH's Simple C Compiler, 2011--2021
  *	Lexical analysis (scanner)
  */
 
@@ -261,6 +261,9 @@ static int keyword(char *s) {
 		if (!strcmp(s, "static")) return STATIC;
 		if (!strcmp(s, "struct")) return STRUCT;
 		if (!strcmp(s, "switch")) return SWITCH;
+		break;
+	case 't':
+		if (!strcmp(s, "typedef")) return TYPEDEF;
 		break;
 	case 'u':
 		if (!strcmp(s, "union")) return UNION;

@@ -1,5 +1,5 @@
 /*
- *	NMH's Simple C Compiler, 2011,2012,2014
+ *	NMH's Simple C Compiler, 2011--2021
  *	Symbol table management
  */
 
@@ -202,6 +202,10 @@ int redeclare(char *name, int oldcls, int newcls) {
 			return CSTATIC;
 		}
 		break;
+	case CTYPE:
+		error("redefinition of typedef name", Text);
+		return CTYPE;
+		break;
 	}
 	error("redefined symbol: %s", name);
 	return newcls;
@@ -212,8 +216,11 @@ int addglob(char *name, int prim, int type, int scls, int size, int val,
 {
 	int	y;
 
-	if ((y = findglob(name)) != 0) {
+	if (0 == *name)
+		y = 0;
+	else if ((y = findglob(name)) != 0) {
 		scls = redeclare(name, Stcls[y], scls);
+		if (CTYPE == scls) return y;
 		if (TFUNCTION == Types[y])
 			mtext = Mtext[y];
 	}
@@ -341,7 +348,7 @@ static char *typename(int p) {
 
 void dumpsyms(char *title, char *sub, int from, int to) {
 	int	i;
-	char	*p;
+	int	*p;
 
 	printf("\n===== %s%s =====\n", title, sub);
 	printf(	"PRIM    TYPE  STCLS   SIZE  VALUE  NAME [MVAL]/(SIG)\n"
@@ -361,7 +368,8 @@ void dumpsyms(char *title, char *sub, int from, int to) {
 				CSPROTO == Stcls[i]? "STATP":
 				CLSTATC == Stcls[i]? "LSTAT":
 				CAUTO   == Stcls[i]? "AUTO ":
-				CMEMBER == Stcls[i]? "MEMBR": "n/a  ",
+				CMEMBER == Stcls[i]? "MEMBR":
+				CTYPE   == Stcls[i]? "TYPE ": "n/a  ",
 			Sizes[i],
 			Vals[i],
 			Names[i]);
@@ -369,7 +377,7 @@ void dumpsyms(char *title, char *sub, int from, int to) {
 			printf(" [\"%s\"]", Mtext[i]);
 		if (TFUNCTION == Types[i]) {
 			printf(" (");
-			for (p = Mtext[i]; *p; p++) {
+			for (p = (int *) Mtext[i]; *p; p++) {
 				printf("%s", typename(*p));
 				if (p[1]) printf(", ");
 			}

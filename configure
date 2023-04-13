@@ -15,8 +15,8 @@ EOT
 longusage() {
 	echo
 	usage
-	echo
 	sed -e 's/^.//' <<EOT
+
 	-m cpu   select target machine
 	-s os    select target operating system
 
@@ -59,7 +59,7 @@ MINGW32_NT-5.1/i686)	os=windows ; mac=386     ; int=32 ;;
 Darwin/x86_64)		os=darwin  ; mac=x86-64  ; int=64 ; stat=untested
 			opt="-darwin"
 			;;
-DOS/8086)		os=dos     ; mac=8086   ; int=16 ; stat=EXPERIMENTAL
+DOS/8086)		os=dos     ; mac=8086    ; int=16 ; stat=EXPERIMENTAL
 			as=s86
 			ar="sar -c"
 			ranlib="sar -r"

@@ -1,5 +1,5 @@
 /*
- *	NMH's Simple C Compiler, 2011--2014
+ *	NMH's Simple C Compiler, 2011--2022
  *	Declaration parser
  */
 
@@ -127,6 +127,13 @@ int primtype(int t, char *s) {
 	return p;
 }
 
+int usertype(char *s) {
+	int	y;
+
+	if ((y = findsym(s)) == 0) return 0;
+	return CTYPE == Stcls[y]? y: 0;
+}
+
 /*
  * pmtrdecl :=
  *	  ( )
@@ -136,11 +143,16 @@ int primtype(int t, char *s) {
  * pmtrlist :=
  *	  primtype declarator
  *	| primtype declarator , pmtrlist
+ *	| usertype declarator
+ *	| usertype declarator , pmtrlist
+ *
+ * usertype :=
+ *	  TYPEDEF_NAME
  */
 
 static int pmtrdecls(void) {
 	char	name[NAMELEN+1];
-	int	prim, type, size, na, addr;
+	int	utype, prim, type, size, na, addr;
 	int	dummy;
 
 	if (RPAREN == Token)
@@ -148,32 +160,43 @@ static int pmtrdecls(void) {
 	na = 0;
 	addr = 2*BPW;
 	for (;;) {
+		utype = 0;
 		if (na > 0 && ELLIPSIS == Token) {
 			Token = scan();
 			na = -(na + 1);
 			break;
 		}
-		else if (IDENT == Token) {
+		else if (IDENT == Token &&
+			 (utype = usertype(Text)) == 0)
+		{
 			prim = PINT;
 		}
 		else {
-			if (	Token != CHAR && Token != INT &&
-				Token != VOID &&
-				Token != STRUCT && Token != UNION
+			if (	CHAR == Token || INT == Token ||
+				VOID == Token ||
+				STRUCT == Token || UNION == Token ||
+				(IDENT == Token && utype != 0)
 			) {
+				name[0] = 0;
+				prim = utype? Prims[utype]:
+					primtype(Token, NULL);
+				Token = scan();
+				if (RPAREN == Token && prim == PVOID && !na)
+					return 0;
+			}
+			else {
 				error("type specifier expected at: %s", Text);
 				Token = synch(RPAREN);
 				return na;
 			}
-			name[0] = 0;
-			prim = primtype(Token, NULL);
-			Token = scan();
-			if (RPAREN == Token && prim == PVOID && !na)
-				return 0;
 		}
 		size = 1;
 		type = declarator(1, CAUTO, name, &prim, &size, &dummy,
 				&dummy);
+		if ((utype && TARRAY == Types[utype]) || TARRAY == type) {
+			prim = pointerto(prim);
+			type = TVARIABLE;
+		}
 		addloc(name, prim, type, CAUTO, size, addr, 0);
 		addr += BPW;
 		na++;
@@ -227,7 +250,9 @@ static int declarator(int pmtr, int scls, char *name, int *pprim, int *psize,
 {
 	int	type = TVARIABLE;
 	int	ptrptr = 0;
+	char	*unsupp;
 
+	unsupp = "unsupported typedef syntax";
 	if (STAR == Token) {
 		Token = scan();
 		*pprim = pointerto(*pprim);
@@ -238,6 +263,8 @@ static int declarator(int pmtr, int scls, char *name, int *pprim, int *psize,
 		}
 	}
 	else if (LPAREN == Token) {
+		if (CTYPE == scls)
+			error(unsupp, NULL);
 		if (*pprim != PINT)
 			error("function pointers are limited to type 'int'",
 				NULL);
@@ -259,6 +286,8 @@ static int declarator(int pmtr, int scls, char *name, int *pprim, int *psize,
 		rparen();
 	}
 	if (!pmtr && ASSIGN == Token) {
+		if (CTYPE == scls)
+			error(unsupp, NULL);
 		Token = scan();
 		*pval = constexpr();
 		if (PCHAR == *pprim)
@@ -268,6 +297,8 @@ static int declarator(int pmtr, int scls, char *name, int *pprim, int *psize,
 		*pinit = 1;
 	}
 	else if (!pmtr && LPAREN == Token) {
+		if (CTYPE == scls)
+			error(unsupp, NULL);
 		Token = scan();
 		*psize = pmtrdecls();
 		rparen();
@@ -278,6 +309,8 @@ static int declarator(int pmtr, int scls, char *name, int *pprim, int *psize,
 			error("too many levels of indirection: %s", name);
 		Token = scan();
 		if (RBRACK == Token) {
+			if (CTYPE == scls)
+				error(unsupp, NULL);
 			Token = scan();
 			if (pmtr) {
 				*pprim = pointerto(*pprim);
@@ -309,7 +342,7 @@ static int declarator(int pmtr, int scls, char *name, int *pprim, int *psize,
 		}
 		else {
 			*psize = constexpr();
-			if (*psize < 0) {
+			if (*psize < 1) {
 				error("invalid array size", NULL);
 				*psize = 0;
 			}
@@ -322,6 +355,16 @@ static int declarator(int pmtr, int scls, char *name, int *pprim, int *psize,
 	return type;
 }
 
+int upgrade_array(int utype, int type, int *size) {
+	if (utype && TARRAY == Types[utype]) {
+		if (TARRAY == type)
+			error("unsupported typedef (array of array)", NULL);
+		*size = *size? *size * Sizes[utype]: Sizes[utype];
+		return TARRAY;
+	}
+	return type;
+}
+
 /*
  * localdecls :=
  *        ldecl
@@ -329,6 +372,7 @@ static int declarator(int pmtr, int scls, char *name, int *pprim, int *psize,
  *
  * ldecl :=
  *	  primtype ldecl_list ;
+ *	| usertype ldecl_list ;
  *	| lclass primtype ldecl_list ;
  *	| lclass ldecl_list ;
  *	| enum_decl
@@ -348,16 +392,18 @@ static int declarator(int pmtr, int scls, char *name, int *pprim, int *psize,
 
 static int localdecls(void) {
 	char	name[NAMELEN+1];
-	int	prim, type, size, addr = 0, val, ini;
+	int	utype, prim, type, size, addr = 0, val, ini;
 	int	stat, extn;
 	int	pbase, rsize;
 
 	Nli = 0;
+	utype = 0;
 	while ( AUTO == Token || EXTERN == Token || REGISTER == Token ||
 		STATIC == Token || VOLATILE == Token ||
 		INT == Token || CHAR == Token || VOID == Token ||
 		ENUM == Token ||
-		STRUCT == Token || UNION == Token
+		STRUCT == Token || UNION == Token ||
+		(IDENT == Token && (utype = usertype(Text)) != 0)
 	) {
 		if (ENUM == Token) {
 			enumdecl(0);
@@ -377,8 +423,15 @@ static int localdecls(void) {
 				prim = primtype(Token, NULL);
 				Token = scan();
 			}
+			else if (utype) {
+				prim = Prims[utype];
+			}
 			else
 				prim = PINT;
+		}
+		else if (utype) {
+			prim = Prims[utype];
+			Token = scan();
 		}
 		else {
 			prim = primtype(Token, NULL);
@@ -392,6 +445,7 @@ static int localdecls(void) {
 			ini = val = 0;
 			type = declarator(0, CAUTO, name, &prim, &size,
 					&val, &ini);
+			type = upgrade_array(utype, type, &size);
 			rsize = objsize(prim, type, size);
 			rsize = (rsize + INTSIZE-1) / INTSIZE * INTSIZE;
 			if (stat) {
@@ -421,6 +475,7 @@ static int localdecls(void) {
 				break;
 		}
 		semi();
+		utype = 0;
 	}
 	return addr;
 }
@@ -458,7 +513,7 @@ static void signature(int fn, int from, int to) {
  *	| declarator , decl_list
  */
 
-void decl(int clss, int prim) {
+void decl(int clss, int prim, int utype) {
 	char	name[NAMELEN+1];
 	int	pbase, type, size = 0, val, init;
 	int	lsize;
@@ -469,6 +524,7 @@ void decl(int clss, int prim) {
 		val = 0;
 		init = 0;
 		type = declarator(0, clss, name, &prim, &size, &val, &init);
+		type = upgrade_array(utype, type, &size);
 		if (TFUNCTION == type) {
 			clss = clss == CSTATIC? CSPROTO: CEXTERN;
 			Thisfn = addglob(name, prim, type, clss, size, 0,
@@ -517,11 +573,19 @@ void decl(int clss, int prim) {
 
 /*
  * structdecl :=
- *	  STRUCT identifier { member_list } ;
+ *	  STRUCT IDENT { member_list } opt_decl ;
+ *	| UNION IDENT { member_list } opt_decl ;
+ *	| STRUCT { member_list } opt_decl ;
+ *	| UNION { member_list } opt_decl ;
+ *
+ * opt_decl :=
+ *      | decl
  *
  * member_list :=
  *	  primtype mdecl_list ;
  *	| primtype mdecl_list ; member_list
+ *	| usertype mdecl_list ;
+ *	| usertype mdecl_list ; member_list
  *
  * mdecl_list :=
  *	  declarator
@@ -529,36 +593,43 @@ void decl(int clss, int prim) {
  */
 
 void structdecl(int clss, int uniondecl) {
-	int	base, prim, size, dummy, type, addr = 0;
+	int	utype, base, prim, size, dummy, type, addr = 0;
 	char	name[NAMELEN+1], sname[NAMELEN+1];
 	int	y, usize = 0;
 
 	Token = scan();
-	copyname(sname, Text);
-	ident();
+	if (IDENT == Token) {
+		copyname(sname, Text);
+		Token = scan();
+	}
+	else {
+		sname[0] = 0;
+	}
 	if (Token != LBRACE) {
 		prim = primtype(uniondecl? UNION: STRUCT, sname);
-		decl(clss, prim);
+		decl(clss, prim, 0);
 		return;
 	}
 	y = addglob(sname, uniondecl? PUNION: PSTRUCT, TSTRUCT,
 			CMEMBER, 0, 0, NULL, 0);
 	Token = scan();
+	utype = 0;
 	while (	INT == Token || CHAR == Token || VOID == Token ||
-		STRUCT == Token || UNION == Token
+		STRUCT == Token || UNION == Token ||
+		(IDENT == Token && (utype = usertype(Text)) != 0)
 	) {
-		base = primtype(Token, NULL);
+		base = utype? Prims[utype]: primtype(Token, NULL);
 		size = 0;
 		Token = scan();
 		for (;;) {
 			if (eofcheck()) return;
 			prim = base;
-			type = declarator(1, clss, name, &prim, &size,
+			type = declarator(1, CMEMBER, name, &prim, &size,
 						&dummy, &dummy);
 			addglob(name, prim, type, CMEMBER, size, addr,
 				NULL, 0);
 			size = objsize(prim, type, size);
-			if (size < 0)
+			if (size < 1)
 				error("size of struct/union member"
 					" is unknown: %s",
 					name);
@@ -573,10 +644,39 @@ void structdecl(int clss, int uniondecl) {
 			Token = scan();
 		}
 		semi();
+		utype = 0;
 	}
 	rbrace();
-	semi();
 	Sizes[y] = uniondecl? usize: addr;
+	if (Token != SEMI)
+		decl(clss, Prims[y] | y, y);
+	else
+		semi();
+}
+
+/*
+ * typedecl :=
+ *	  TYPEDEF primtype decl
+ *	| TYPEDEF usertype decl
+ *	| TYPEDEF structdecl
+ */
+
+void typedecl(void) {
+	int	utype, prim;
+
+	Token = scan();
+	if (STRUCT == Token || UNION == Token) {
+		structdecl(CTYPE, UNION == Token);
+	}
+	else if ((utype = usertype(Text)) != 0) {
+		Token = scan();
+		decl(CTYPE, Prims[utype], utype);
+	}
+	else {
+		prim = primtype(Token, NULL);
+		Token = scan();
+		decl(CTYPE, prim, 0);
+	}
 }
 
 /*
@@ -586,6 +686,9 @@ void structdecl(int clss, int uniondecl) {
  *	| primtype decl
  *	| storclass decl
  *	| storclass primtype decl
+ *	| typedecl
+ *	| usertype decl
+ *	| storclass usertype decl
  *
  * storclass :=
  *	  EXTERN
@@ -593,7 +696,7 @@ void structdecl(int clss, int uniondecl) {
  */
 
 void top(void) {
-	int	prim, clss = CPUBLIC;
+	int	utype, prim, clss = CPUBLIC;
 
 	switch (Token) {
 	case EXTERN:	clss = CEXTERN; Token = scan(); break;
@@ -604,6 +707,9 @@ void top(void) {
 	case ENUM:
 		enumdecl(1);
 		break;
+	case TYPEDEF:
+		typedecl();
+		break;
 	case STRUCT:
 	case UNION:
 		structdecl(clss, UNION == Token);
@@ -613,10 +719,15 @@ void top(void) {
 	case VOID:
 		prim = primtype(Token, NULL);
 		Token = scan();
-		decl(clss, prim);
+		decl(clss, prim, 0);
 		break;
 	case IDENT:
-		decl(clss, PINT);
+		if ((utype = usertype(Text)) != 0) {
+			Token = scan();
+			decl(clss, Prims[utype], utype);
+		}
+		else
+			decl(clss, PINT, 0);
 		break;
 	default:
 		error("type specifier expected at: %s", Text);

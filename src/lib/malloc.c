@@ -1,5 +1,5 @@
 /*
- *	NMH's Simple C Compiler, 2011,2012,2014
+ *	NMH's Simple C Compiler, 2011--2021
  *	malloc()
  */
 
@@ -21,7 +21,7 @@ static void defrag(void) {
 	end = _arena + _asize;
 	for (p = _arena; p < end; p += abs(*p)) {
 		if (*p > 0) {
-			for (q = p; q < end && *q > 0; q += *q)
+			for (q = p + *p; q < end && *q > 0; q += *q)
 				;
 			*p = q - p;
 		}

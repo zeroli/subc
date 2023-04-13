@@ -468,14 +468,14 @@ jmp_buf	here;
 int	count;
 
 void jump(int v) {
-	longjmp(&here, v);
+	longjmp(here, v);
 	fail("longjmp-1");
 }
 
 void test_ljmp(void) {
 	pr("setjmp/longjmp");
 	count = 0;
-	if (setjmp(&here)) {
+	if (setjmp(here)) {
 		if (count != 1) fail("setjmp-1");
 		return;
 	}

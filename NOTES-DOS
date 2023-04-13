@@ -3,7 +3,9 @@
 	SUBC COMPILER FOR DOS/8086
 
 	*************************************************************
-	*** The DOS/8086 port is still experimental at the moment ***
+	** The DOS/8086 port no longer works, because the compiler **
+	** no longer fits in a small-model program. The cross-     **
+	** compiler still works, though.                           **
 	*************************************************************
 
 	The SubC compiler can now be cross-compiled for DOS with the
