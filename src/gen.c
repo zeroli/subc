@@ -1,6 +1,6 @@
 /*
- *	NMH's Simple C Compiler, 2011--2014
- *	Synthesizing code generator (emitter)
+ *	NMH's Simple C Compiler, 2011--2016
+ *	Code generator (emitter)
  */
 
 #include "defs.h"
@@ -12,7 +12,11 @@ int	Acc = 0;
 
 void clear(int q) {
 	Acc = 0;
-	if (q) Q_type = empty;
+	if (q) {
+		Q_type = empty;
+		Q_cmp = cnone;
+		Q_bool = bnone;
+	}
 }
 
 void load(void) {
@@ -171,7 +175,6 @@ void queue(int type, int val, char *name) {
 	Q_type = type;
 	Q_val = val;
 	if (name) copyname(Q_name, name);
-	Q_cmp = cnone;
 }
 
 void genaddr(int y) {
@@ -369,33 +372,21 @@ void commit_cmp(void) {
 }
 
 void queue_cmp(int op) {
-	if (Q_bool != bnone) commit_bool();
-	if (Q_cmp != cnone) commit_cmp();
+	commit();
 	Q_cmp = op;
 }
 
-int genbinop(int op, int p1, int p2) {
-	int	ptr;
-
-	ptr = !inttype(p1);
+int binoptype(int op, int p1, int p2) {
 	binopchk(op, p1, p2);
-	switch (op) {
-	case PLUS:	return genadd(p1, p2, 1);
-	case MINUS:	return gensub(p1, p2, 1);
-	case STAR:	genmul(); break;
-	case SLASH:	gendiv(1); break;
-	case MOD:	genmod(1); break;
-	case LSHIFT:	genshl(1); break;
-	case RSHIFT:	genshr(1); break;
-	case AMPER:	genand(); break;
-	case CARET:	genxor(); break;
-	case PIPE:	genior(); break;
-	case EQUAL:	queue_cmp(equal); break;
-	case NOTEQ:	queue_cmp(not_equal); break;
-	case LESS:	queue_cmp(ptr? below: less); break;
-	case GREATER:	queue_cmp(ptr? above: greater); break;
-	case LTEQ:	queue_cmp(ptr? below_equal: less_equal); break;
-	case GTEQ:	queue_cmp(ptr? above_equal: greater_equal); break;
+	if (PLUS == op) {
+		if (!inttype(p1)) return p1;
+		if (!inttype(p2)) return p2;
+	}
+	else if (MINUS == op) {
+		if (!inttype(p1)) {
+			if (!inttype(p2)) return PINT;
+			return p1;
+		}
 	}
 	return PINT;
 }
@@ -656,7 +647,7 @@ static void genincptr(int *lv, int inc, int pre) {
 	commit();
 	if (!y && !pre) cgldinc();
 	if (!pre) {
-		rvalue(lv);
+		genrval(lv);
 		commit();
 	}
 	if (!y) {
@@ -689,7 +680,7 @@ static void genincptr(int *lv, int inc, int pre) {
 		else
 			cgdecpg(gsym(Names[y]), size);
 	}
-	if (pre) rvalue(lv);
+	if (pre) genrval(lv);
 }
 
 void geninc(int *lv, int inc, int pre) {
@@ -706,7 +697,7 @@ void geninc(int *lv, int inc, int pre) {
 	commit();
 	if (!y && !pre) cgldinc();
 	if (!pre) {
-		rvalue(lv);
+		genrval(lv);
 		commit();
 	}
 	if (!y) {
@@ -741,7 +732,7 @@ void geninc(int *lv, int inc, int pre) {
 			b? cgdecgb(gsym(Names[y])):
 			   cgdecgw(gsym(Names[y]));
 	}
-	if (pre) rvalue(lv);
+	if (pre) genrval(lv);
 }
 
 /* switch table generator */
@@ -762,35 +753,9 @@ void genswitch(int *vals, int *labs, int nc, int dflt) {
 
 /* assigments */
 
-void genasop(int op, int p1, int p2, int swapped) {
-	binopchk(op, p1, p2);
-	switch (op) {
-	case ASDIV:	gendiv(swapped); break;
-	case ASMUL:	genmul(); break;
-	case ASMOD:	genmod(swapped); break;
-	case ASPLUS:	genadd(p1, p2, swapped); break;
-	case ASMINUS:	gensub(p1, p2, swapped); break;
-	case ASLSHIFT:	genshl(swapped); break;
-	case ASRSHIFT:	genshr(swapped); break;
-	case ASAND:	genand(); break;
-	case ASXOR:	genxor(); break;
-	case ASOR:	genior(); break;
-	}
-}
-
-void genstore(int op, int *lv, int *lv2) {
-	int	swapped = 1;
-
+void genstore(int *lv) {
 	if (NULL == lv) return;
 	gentext();
-	if (ASSIGN != op) {
-		if (lv[LVSYM]) {
-			rvalue(lv);
-			swapped = 0;
-		}
-		genasop(op, lv[LVPRIM], lv2[LVPRIM], swapped);
-	}
-	commit();
 	if (!lv[LVSYM]) {
 		cgpopptr();
 		if (PCHAR == lv[LVPRIM])
@@ -819,9 +784,9 @@ void genstore(int op, int *lv, int *lv2) {
 	}
 }
 
-/* rvalue computation */
+/* genrval computation */
 
-void rvalue(int *lv) {
+void genrval(int *lv) {
 	if (NULL == lv) return;
 	gentext();
 	if (!lv[LVSYM]) {
